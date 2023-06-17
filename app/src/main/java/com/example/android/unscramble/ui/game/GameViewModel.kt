@@ -1,46 +1,61 @@
 package com.example.android.unscramble.ui.game
 
-import android.util.Log
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.TtsSpan
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.map
 
 class GameViewModel : ViewModel() {
-    private var _score = MutableLiveData<Int>(0)
+    private val _score = MutableLiveData<Int>(0)
     val score: LiveData<Int>
         get() = _score
 
-    private var _currentWordCount = MutableLiveData<Int>(0)
+    private val _currentWordCount = MutableLiveData<Int>(0)
     val currentWordCount: LiveData<Int>
         get() = _currentWordCount
 
     private val _currentScrambledWord = MutableLiveData<String>()
-    val currentScrambledWord: LiveData<String>
-        get() = _currentScrambledWord
+    val currentScrambledWord: LiveData<Spannable> = _currentScrambledWord.map {
+        if (it == null) {
+            SpannableString("")
+        } else {
+            val scrambleWord = it.toString()
+            val spannable: Spannable = SpannableString(scrambleWord)
+            spannable.setSpan(
+                TtsSpan.VerbatimBuilder(scrambleWord).build(),
+                0,
+                scrambleWord.length,
+                Spannable.SPAN_INCLUSIVE_INCLUSIVE
+            )
+            spannable
+        }
+    }
 
-    private val wordsList : MutableList<String> = mutableListOf()
-    private lateinit var currentWord : String
+    private val wordsList: MutableList<String> = mutableListOf()
+    private lateinit var currentWord: String
+
+    init {
+        getNextWord()
+    }
 
     // Updates currentWord and currentScrambledWord with the next word
     private fun getNextWord() {
         currentWord = allWordsList.random()
         val tempWord = currentWord.toCharArray()
 
-        while(String(tempWord).equals(currentWord, false)) {
+        while (String(tempWord).equals(currentWord, false)) {
             tempWord.shuffle()
         }
-        if(wordsList.contains(currentWord)) {
+        if (wordsList.contains(currentWord)) {
             getNextWord()
         } else {
             _currentScrambledWord.value = String(tempWord)
             _currentWordCount.value = _currentWordCount.value?.inc()
             wordsList.add(currentWord)
         }
-    }
-
-    init {
-        Log.d("GameFragment", "GameViewModel created")
-        getNextWord()
     }
 
     fun nextWord(): Boolean {
@@ -50,17 +65,12 @@ class GameViewModel : ViewModel() {
         } else false
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        Log.d("GameFragment", "GameViewModel destroyed")
-    }
-
     private fun increaseScore() {
         _score.value = (_score.value)?.plus(SCORE_INCREASE)
     }
 
     fun isUserWordCorrect(playerWord: String): Boolean {
-        if(playerWord.equals(currentWord, false)) {
+        if (playerWord.equals(currentWord, false)) {
             increaseScore()
             return true
         }
